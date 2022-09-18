@@ -1,0 +1,36 @@
+refresh_rate: 30 seconds
+appenders:
+  stdout:
+    kind: console
+    target: stderr
+    encoder:
+      pattern: "[{d}][{l}][{f}:{L}] {m}{n}"
+  file:
+    kind: rolling_file
+    policy:
+      kind: compound
+      trigger:
+        kind: size
+        limit: 10 mb
+      roller:
+        kind: fixed_window
+        pattern: "enum-dir.{}.log"
+        base: 0
+        count: 10
+    path: "log/enum-dir.log"
+    encoder:
+      pattern: "[{M}][{d}][{l}][{f}:{L}] {m}{n}"
+
+root:
+  level: info
+  appenders:
+    - stdout
+    - file
+
+loggers:
+  enum_dir:
+    level: debug
+    appenders:
+      - stdout
+      - file
+    additive: false
