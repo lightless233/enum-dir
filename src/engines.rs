@@ -1,8 +1,9 @@
-use std::{cell::RefCell, sync::Arc, time::Duration, vec};
+use std::{sync::Arc, time::Duration, vec};
 
 use async_channel::{Receiver, Sender};
 use itertools::Itertools;
 use log::{debug, info, warn};
+use reqwest::ClientBuilder;
 use tokio::sync::Mutex;
 
 use crate::{args_parser::AppArgs, context::AppContext};
@@ -69,6 +70,10 @@ pub async fn worker(
 ) {
     debug!("engine worker {} start", idx);
     let target = &args.target;
+    let http_client = ClientBuilder::new()
+        .timeout(Duration::from_secs(12))
+        .build()
+        .unwrap();
 
     loop {
         let task = task_channel.try_recv();
@@ -86,9 +91,25 @@ pub async fn worker(
                 }
             }
         };
+        
+        // TODO HTTP Method 通过命令行参数选择，默认 HEAD
+        // TODO 添加 socks5 代理配置
+        debug!("make request to {}", url);
+        match http_client.head(&url).send().await {
+            Ok(r) => {
+                let code = r.status().as_u16();
+                info!("{} {}", code, url);
+                // if code != 404 {
+                //     // TODO 记录扫描结果
+                //     info!("{} {}", code, target);
+                // }
+            }
+            Err(e) => {
+                // TODO 发包失败了，重试一下，重试策略放到参数里
+                info!("{}", e);
+            }
+        }
 
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        debug!("{}", url);
     }
 
     app_context.lock().await.worker_status[idx] = 2;
