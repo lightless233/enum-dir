@@ -14,7 +14,7 @@ appenders:
         limit: 10 mb
       roller:
         kind: fixed_window
-        pattern: "enum-dir.{}.log"
+        pattern: "log/enum-dir.{}.log"
         base: 0
         count: 10
     path: "log/enum-dir.log"
