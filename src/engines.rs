@@ -1,4 +1,4 @@
-use std::{cell::RefCell, sync::Arc, vec};
+use std::{cell::RefCell, sync::Arc, time::Duration, vec};
 
 use async_channel::{Receiver, Sender};
 use itertools::Itertools;
@@ -13,7 +13,7 @@ use crate::{args_parser::AppArgs, context::AppContext};
 pub async fn builder(
     task_channel: Sender<String>,
     args: Arc<AppArgs>,
-    app_context: Arc<AppContext>,
+    app_context: Arc<Mutex<AppContext>>,
 ) {
     // 处理 suffix
     let mut suffixes: Vec<String> = vec![];
@@ -49,25 +49,49 @@ pub async fn builder(
                 if result.is_err() {
                     warn!(
                         "Error put task to channel, task: {}, error: {:?}",
-                        task, result
+                        task,
+                        result.unwrap_err().0
                     );
                 }
             }
         }
     }
 
-    app_context.builder_status = 2;
+    app_context.lock().await.builder_status = 2;
     info!("builder end!");
 }
 
-pub async fn worker(idx: usize, args: Arc<AppArgs>, task_channel: Receiver<String>) {
+pub async fn worker(
+    idx: usize,
+    args: Arc<AppArgs>,
+    task_channel: Receiver<String>,
+    app_context: Arc<Mutex<AppContext>>,
+) {
     debug!("engine worker {} start", idx);
     let target = &args.target;
 
     loop {
-        let task = task_channel.recv().await;
+        let task = task_channel.try_recv();
         debug!("worker {} receive {:?}", idx, task);
+
+        let url = match task {
+            Ok(v) => format!("{}{}", target, v),
+            Err(_) => {
+                if app_context.lock().await.builder_status == 2 {
+                    info!("builder has been stopped, worker {} will stop.", idx);
+                    break;
+                } else {
+                    info!("builder is running, worker {} will running.", idx);
+                    continue;
+                }
+            }
+        };
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        debug!("{}", url);
     }
+
+    app_context.lock().await.worker_status[idx] = 2;
 }
 
 pub async fn saver() {}
