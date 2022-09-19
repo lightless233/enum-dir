@@ -70,16 +70,21 @@ pub fn parse() -> Result<AppArgs, &'static str> {
 
     // 解析 target 参数
     // TODO 后续需要更加详细的验证 target 参数，不过现在自己用就比较无所谓
-    let target = options.get_one::<String>("target").unwrap().to_owned();
+    let mut target = options.get_one::<String>("target").unwrap().to_owned();
     if target.is_empty() {
         return Err("target 不能为空");
     }
-    app_args.target = if target.starts_with("http://") || target.starts_with("https://") {
+    target = if target.starts_with("http://") || target.starts_with("https://") {
         target
     } else {
         // TODO 需要探测真正的协议，如果 http 没有跳转，就都使用 http 协议，如果 http 协议跳转到 https 了，就使用 https 协议
         // 目前为了简单，先添加 http 协议
         format!("http://{}", target)
+    };
+    app_args.target = if target.ends_with('/') {
+        target
+    } else {
+        format!("{}/", target)
     };
 
     app_args.length = options
