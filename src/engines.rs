@@ -1,12 +1,15 @@
 use std::{sync::Arc, time::Duration, vec};
+use tokio::fs::File;
 
 use async_channel::{Receiver, Sender};
 use itertools::Itertools;
 use log::{debug, info, warn};
 use reqwest::ClientBuilder;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
-use crate::{args_parser::AppArgs, context::AppContext};
+use crate::context::EnumResult;
+use crate::{args_parser::AppArgs, context::AppContext, WorkerStatus};
 
 /**
  * 通过迭代器生成待枚举的文件名，并放到 channel 中
@@ -58,7 +61,7 @@ pub async fn builder(
         }
     }
 
-    app_context.lock().await.builder_status = 2;
+    app_context.lock().await.builder_status = WorkerStatus::STOP;
     info!("builder end!");
 }
 
@@ -66,6 +69,7 @@ pub async fn worker(
     idx: usize,
     args: Arc<AppArgs>,
     task_channel: Receiver<String>,
+    result_channel: Sender<EnumResult>,
     app_context: Arc<Mutex<AppContext>>,
 ) {
     debug!("engine worker {} start", idx);
@@ -77,42 +81,77 @@ pub async fn worker(
 
     loop {
         let task = task_channel.try_recv();
-        debug!("worker {} receive {:?}", idx, task);
+        // debug!("worker {} receive {:?}", idx, task);
 
         let url = match task {
             Ok(v) => format!("{}{}", target, v),
             Err(_) => {
-                if app_context.lock().await.builder_status == 2 {
-                    info!("builder has been stopped, worker {} will stop.", idx);
+                if app_context.lock().await.builder_status == WorkerStatus::STOP {
+                    // info!("builder has been stopped, worker {} will stop.", idx);
                     break;
                 } else {
-                    info!("builder is running, worker {} will running.", idx);
+                    // info!("builder is running, worker {} will running.", idx);
                     continue;
                 }
             }
         };
-        
+
         // TODO HTTP Method 通过命令行参数选择，默认 HEAD
         // TODO 添加 socks5 代理配置
-        debug!("make request to {}", url);
         match http_client.head(&url).send().await {
             Ok(r) => {
                 let code = r.status().as_u16();
-                info!("{} {}", code, url);
-                // if code != 404 {
-                //     // TODO 记录扫描结果
-                //     info!("{} {}", code, target);
-                // }
+                let mut _result = EnumResult::default();
+                _result.status_code = code;
+                _result.url = url;
+                // debug!("EnumResult: {:?}", _result);
+                let _ = result_channel.send(_result).await;
             }
             Err(e) => {
                 // TODO 发包失败了，重试一下，重试策略放到参数里
                 info!("{}", e);
             }
         }
-
     }
 
-    app_context.lock().await.worker_status[idx] = 2;
+    app_context.lock().await.worker_status[idx] = WorkerStatus::STOP;
 }
 
-pub async fn saver() {}
+pub async fn saver(
+    app_context: Arc<Mutex<AppContext>>,
+    args: Arc<AppArgs>,
+    result_channel: Receiver<EnumResult>,
+) {
+    let output = &args.output;
+    let mut output_file_handler = File::create(output).await.unwrap();
+    loop {
+        let result = result_channel.try_recv();
+        if let Ok(result) = result {
+            if result.status_code == 404 {
+                continue;
+            }
+
+            let line = format!("{} {}\n", result.status_code, result.url);
+            info!("Found {}", line);
+
+            output_file_handler
+                .write(line.as_bytes().as_ref())
+                .await
+                .unwrap();
+        } else {
+            if !app_context
+                .lock()
+                .await
+                .worker_status
+                .contains(&WorkerStatus::RUNNING)
+            {
+                break;
+            } else {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                continue;
+            }
+        }
+    }
+    app_context.lock().await.saver_status = WorkerStatus::RUNNING;
+    info!("Save worker stop.");
+}

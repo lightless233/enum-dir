@@ -1,9 +1,11 @@
-use async_channel::{Receiver, Sender};
-use log::{debug, error};
-use std::cell::RefCell;
 use std::process::exit;
 use std::sync::Arc;
+
+use async_channel::{Receiver, Sender};
+use log::{debug, error};
 use tokio::sync::Mutex;
+
+use crate::context::{EnumResult, WorkerStatus};
 
 mod args_parser;
 mod context;
@@ -23,16 +25,16 @@ async fn main() {
     let rc_args = Arc::new(args);
 
     // 初始化 app context
-    let app_context = Arc::new(Mutex::new(context::AppContext::default()));
+    let app_context = Arc::new(Mutex::new(context::AppContext::new()));
 
     // 任务通道
-    let (task_tx, task_rx): (Sender<String>, Receiver<String>) = async_channel::bounded(1024);
-    let (saver_tx, saver_rx): (Sender<String>, Receiver<String>) = async_channel::bounded(1024);
+    let (task_tx, task_rx) = async_channel::bounded::<String>(1024);
+    let (saver_tx, saver_rx) = async_channel::bounded::<EnumResult>(1024);
 
     // 启动不同的协程
     // task builder
     {
-        app_context.lock().await.builder_status = 1;
+        app_context.lock().await.builder_status = WorkerStatus::RUNNING;
     }
     let task_builder_handler = tokio::spawn(engines::builder(
         task_tx.clone(),
@@ -44,12 +46,17 @@ async fn main() {
     let mut worker_handlers = vec![];
     for idx in 0..rc_args.task_count {
         {
-            app_context.lock().await.worker_status.push(1);
+            app_context
+                .lock()
+                .await
+                .worker_status
+                .push(WorkerStatus::RUNNING);
         }
         let _handler = tokio::spawn(engines::worker(
             idx,
             rc_args.clone(),
             task_rx.clone(),
+            saver_tx.clone(),
             Arc::clone(&app_context),
         ));
         worker_handlers.push(_handler);
@@ -57,14 +64,18 @@ async fn main() {
 
     // saver
     {
-        app_context.lock().await.saver_status = 1;
+        app_context.lock().await.saver_status = WorkerStatus::RUNNING;
     }
-    let saver_handler = tokio::spawn(engines::saver());
+    let saver_handler = tokio::spawn(engines::saver(
+        Arc::clone(&app_context),
+        Arc::clone(&rc_args),
+        saver_rx.clone(),
+    ));
 
     // 等待结束
-    task_builder_handler.await;
+    let _ = task_builder_handler.await;
     for h in worker_handlers {
-        h.await;
+        let _ = h.await;
     }
-    saver_handler.await;
+    let _ = saver_handler.await;
 }
