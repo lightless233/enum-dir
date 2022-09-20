@@ -1,8 +1,7 @@
 use std::process::exit;
 use std::sync::Arc;
 
-use async_channel::{Receiver, Sender};
-use log::{debug, error};
+use log::error;
 use tokio::sync::Mutex;
 
 use crate::context::{EnumResult, WorkerStatus};
@@ -16,13 +15,12 @@ mod utils;
 async fn main() {
     utils::init_logger();
     let args = match args_parser::parse() {
-        Ok(v) => v,
+        Ok(v) => Arc::new(v),
         Err(e) => {
             error!("{}", e);
             exit(-1);
         }
     };
-    let rc_args = Arc::new(args);
 
     // 初始化 app context
     let app_context = Arc::new(Mutex::new(context::AppContext::new()));
@@ -34,27 +32,27 @@ async fn main() {
     // 启动不同的协程
     // task builder
     {
-        app_context.lock().await.builder_status = WorkerStatus::RUNNING;
+        app_context.lock().await.builder_status = WorkerStatus::Running;
     }
     let task_builder_handler = tokio::spawn(engines::builder(
         task_tx.clone(),
-        rc_args.clone(),
+        Arc::clone(&args),
         Arc::clone(&app_context),
     ));
 
     // worker
     let mut worker_handlers = vec![];
-    for idx in 0..rc_args.task_count {
+    for idx in 0..args.task_count {
         {
             app_context
                 .lock()
                 .await
                 .worker_status
-                .push(WorkerStatus::RUNNING);
+                .push(WorkerStatus::Running);
         }
         let _handler = tokio::spawn(engines::worker(
             idx,
-            rc_args.clone(),
+            Arc::clone(&args),
             task_rx.clone(),
             saver_tx.clone(),
             Arc::clone(&app_context),
@@ -64,11 +62,11 @@ async fn main() {
 
     // saver
     {
-        app_context.lock().await.saver_status = WorkerStatus::RUNNING;
+        app_context.lock().await.saver_status = WorkerStatus::Running;
     }
     let saver_handler = tokio::spawn(engines::saver(
         Arc::clone(&app_context),
-        Arc::clone(&rc_args),
+        Arc::clone(&args),
         saver_rx.clone(),
     ));
 

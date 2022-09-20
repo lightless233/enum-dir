@@ -26,7 +26,7 @@ pub async fn builder(
         suffixes.push("/".to_owned())
     }
     args.suffix
-        .split(",")
+        .split(',')
         .for_each(|it| suffixes.push(format!(".{}", it.trim())));
     debug!("suffixes: {:?}", suffixes);
 
@@ -61,7 +61,7 @@ pub async fn builder(
         }
     }
 
-    app_context.lock().await.builder_status = WorkerStatus::STOP;
+    app_context.lock().await.builder_status = WorkerStatus::Stop;
     info!("builder end!");
 }
 
@@ -86,7 +86,7 @@ pub async fn worker(
         let url = match task {
             Ok(v) => format!("{}{}", target, v),
             Err(_) => {
-                if app_context.lock().await.builder_status == WorkerStatus::STOP {
+                if app_context.lock().await.builder_status == WorkerStatus::Stop {
                     // info!("builder has been stopped, worker {} will stop.", idx);
                     break;
                 } else {
@@ -101,11 +101,12 @@ pub async fn worker(
         match http_client.head(&url).send().await {
             Ok(r) => {
                 let code = r.status().as_u16();
-                let mut _result = EnumResult::default();
-                _result.status_code = code;
-                _result.url = url;
+                let result = EnumResult {
+                    status_code: code,
+                    url,
+                };
                 // debug!("EnumResult: {:?}", _result);
-                let _ = result_channel.send(_result).await;
+                let _ = result_channel.send(result).await;
             }
             Err(e) => {
                 // TODO 发包失败了，重试一下，重试策略放到参数里
@@ -114,7 +115,7 @@ pub async fn worker(
         }
     }
 
-    app_context.lock().await.worker_status[idx] = WorkerStatus::STOP;
+    app_context.lock().await.worker_status[idx] = WorkerStatus::Stop;
 }
 
 pub async fn saver(
@@ -134,24 +135,22 @@ pub async fn saver(
             let line = format!("{} {}\n", result.status_code, result.url);
             info!("Found {}", line);
 
-            output_file_handler
+            let _ = output_file_handler
                 .write(line.as_bytes().as_ref())
                 .await
                 .unwrap();
+        } else if !app_context
+            .lock()
+            .await
+            .worker_status
+            .contains(&WorkerStatus::Running)
+        {
+            break;
         } else {
-            if !app_context
-                .lock()
-                .await
-                .worker_status
-                .contains(&WorkerStatus::RUNNING)
-            {
-                break;
-            } else {
-                tokio::time::sleep(Duration::from_millis(500)).await;
-                continue;
-            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            continue;
         }
     }
-    app_context.lock().await.saver_status = WorkerStatus::RUNNING;
+    app_context.lock().await.saver_status = WorkerStatus::Stop;
     info!("Save worker stop.");
 }

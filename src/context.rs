@@ -8,18 +8,18 @@ pub struct AppContext {
 impl AppContext {
     pub fn new() -> Self {
         Self {
-            builder_status: WorkerStatus::INIT,
+            builder_status: WorkerStatus::Init,
             worker_status: vec![],
-            saver_status: WorkerStatus::INIT,
+            saver_status: WorkerStatus::Init,
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum WorkerStatus {
-    INIT,
-    RUNNING,
-    STOP,
+    Init,
+    Running,
+    Stop,
 }
 
 #[derive(Debug, Default)]
