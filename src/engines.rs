@@ -1,10 +1,11 @@
 use std::{sync::Arc, time::Duration, vec};
-use tokio::fs::File;
 
 use async_channel::{Receiver, Sender};
 use itertools::Itertools;
 use log::{debug, info, warn};
+use rand::prelude::SliceRandom;
 use reqwest::{ClientBuilder, Method};
+use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
@@ -74,10 +75,13 @@ pub async fn worker(
 ) {
     debug!("engine worker {} start", idx);
     let target = &args.target;
-    let http_client = ClientBuilder::new()
-        .timeout(Duration::from_secs(12))
-        .build()
-        .unwrap();
+
+    // 如果没使用 random user agent，直接在这里把UA写进去
+    let mut builder = ClientBuilder::new().timeout(Duration::from_secs(12));
+    if !args.random_user_agent {
+        builder = builder.user_agent(&args.user_agent);
+    }
+    let http_client = builder.build().unwrap();
 
     loop {
         let task = task_channel.try_recv();
@@ -94,7 +98,13 @@ pub async fn worker(
 
         // TODO 添加 socks5 代理配置
         let method = Method::from_bytes(args.request_method.as_bytes()).unwrap();
-        match http_client.request(method, &url).send().await {
+        // 如果使用了 random-user-agent 选项，就随机一个 agent 出来，然后塞到头里
+        let mut request = http_client.request(method, &url);
+        if args.random_user_agent {
+            let random_ua = args.user_agent_list.choose(&mut rand::thread_rng());
+            request = request.header("User-Agent", random_ua.unwrap());
+        }
+        match request.send().await {
             Ok(r) => {
                 let code = r.status().as_u16();
                 let result = EnumResult {
@@ -128,9 +138,9 @@ pub async fn saver(
                 continue;
             }
 
-            let line = format!("{} {}\n", result.status_code, result.url);
-            info!("Found {}", line);
+            info!("Found {} {}", result.status_code, result.url);
 
+            let line = format!("{} {}\n", result.status_code, result.url);
             let _ = output_file_handler
                 .write(line.as_bytes().as_ref())
                 .await

@@ -9,6 +9,11 @@ pub struct AppArgs {
     pub suffix: String,
     pub empty_suffix: bool,
     pub length: usize,
+    pub user_agent: String,
+    pub random_user_agent: bool,
+
+    // not in cli args.
+    pub user_agent_list: Vec<String>,
 }
 
 fn get_arg_matches() -> ArgMatches {
@@ -70,6 +75,17 @@ fn get_arg_matches() -> ArgMatches {
             .help("输出文件路径")
             .takes_value(true)
             .default_value("./enum-dir-result.txt")
+    ).arg(
+        Arg::new("user-agent")
+            .long("user-agent")
+            .help("指定扫描时候的UA，默认使用 enum-dir 内置的UA")
+            .takes_value(true)
+            .default_value("EnumDir/0.0.1")
+    ).arg(
+        Arg::new("random-user-agent")
+            .long("random-user-agent")
+            .help("使用随机的 user-agent，来源于 sqlmap，thanks sqlmap")
+            .takes_value(false)
     ).get_matches()
 }
 
@@ -127,5 +143,29 @@ pub fn parse() -> Result<AppArgs, &'static str> {
         return Err("method 错误！");
     }
 
+    // 获取 UA
+    app_args.user_agent = options.get_one::<String>("user-agent").unwrap().to_owned();
+
+    // 获取随机 UA 的设置，默认为 false
+    app_args.random_user_agent = options.is_present("random-user-agent");
+    if app_args.random_user_agent {
+        app_args.user_agent_list = read_user_agent();
+    }
+
     Ok(app_args)
+}
+
+fn read_user_agent() -> Vec<String> {
+    let mut result = vec![];
+    let content = include_str!("../user-agents.txt");
+    for mut line in content.lines() {
+        line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        result.push(line.to_owned());
+    }
+
+    result
 }

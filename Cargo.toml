@@ -12,6 +12,7 @@ itertools = "0.10.2"
 log = "0.4.17"
 log4rs = "1.1.1"
 tokio = {version = "1.19.2", features = ["rt", "macros", "rt-multi-thread", "fs"]}
+rand = "0.8.5"
 
 [dependencies.reqwest]
 default-features = false
