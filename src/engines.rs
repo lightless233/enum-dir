@@ -81,16 +81,12 @@ pub async fn worker(
 
     loop {
         let task = task_channel.try_recv();
-        // debug!("worker {} receive {:?}", idx, task);
-
         let url = match task {
             Ok(v) => format!("{}{}", target, v),
             Err(_) => {
                 if app_context.lock().await.builder_status == WorkerStatus::Stop {
-                    // info!("builder has been stopped, worker {} will stop.", idx);
                     break;
                 } else {
-                    // info!("builder is running, worker {} will running.", idx);
                     continue;
                 }
             }
