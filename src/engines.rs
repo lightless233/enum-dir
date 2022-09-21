@@ -4,7 +4,7 @@ use tokio::fs::File;
 use async_channel::{Receiver, Sender};
 use itertools::Itertools;
 use log::{debug, info, warn};
-use reqwest::ClientBuilder;
+use reqwest::{ClientBuilder, Method};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
@@ -96,9 +96,9 @@ pub async fn worker(
             }
         };
 
-        // TODO HTTP Method 通过命令行参数选择，默认 HEAD
         // TODO 添加 socks5 代理配置
-        match http_client.head(&url).send().await {
+        let method = Method::from_bytes(args.request_method.as_bytes()).unwrap();
+        match http_client.request(method, &url).send().await {
             Ok(r) => {
                 let code = r.status().as_u16();
                 let result = EnumResult {

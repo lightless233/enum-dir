@@ -4,6 +4,7 @@ use clap::{crate_version, App, AppSettings, Arg, ArgMatches};
 pub struct AppArgs {
     pub target: String,
     pub task_count: usize,
+    pub request_method: String,
     pub output: String,
     pub suffix: String,
     pub empty_suffix: bool,
@@ -30,6 +31,14 @@ fn get_arg_matches() -> ArgMatches {
                 .long("length")
                 .help("爆破文件名的最大长度，默认为3")
                 .default_value("3")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::new("method")
+                .short('m')
+                .long("method")
+                .help("枚举时使用的 HTTP 方法，默认为 HEAD")
+                .default_value("HEAD")
                 .takes_value(true),
         )
         .arg(
@@ -102,6 +111,21 @@ pub fn parse() -> Result<AppArgs, &'static str> {
     app_args.suffix = options.get_one::<String>("suffix").unwrap().to_owned();
     app_args.empty_suffix = options.is_present("empty-suffix");
     app_args.output = options.get_one::<String>("output").unwrap().to_owned();
+
+    // 检查 method 是否合法
+    let method = options
+        .get_one::<String>("method")
+        .unwrap()
+        .to_owned()
+        .to_uppercase();
+    let available_methods = [
+        "GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CONNECT", "PATCH", "TRACE",
+    ];
+    if available_methods.contains(&method.as_str()) {
+        app_args.request_method = method;
+    } else {
+        return Err("method 错误！");
+    }
 
     Ok(app_args)
 }
