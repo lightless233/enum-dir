@@ -25,7 +25,7 @@ TODO
 # 2. 参数说明
 ```shell
 USAGE:
-    enum-dir [OPTIONS] --target <target>
+    enum-dir.exe [OPTIONS] --target <target>
 
 OPTIONS:
     -t, --target <target>            待爆破文件的链接，例如 https://example.com/
@@ -38,6 +38,8 @@ OPTIONS:
     -o, --output <output>            输出文件路径 [default: ./enum-dir-result.txt]
         --user-agent <user-agent>    指定扫描时候的UA，默认使用 enum-dir 内置的UA [default:
                                      EnumDir/0.0.1]
+    -c, --cookie <cookie>            指定枚举时使用的cookie
+    -H, --header <header>            指定枚举时的 http header
         --random-user-agent          使用随机的 user-agent，来源于 sqlmap，thanks sqlmap
     -h, --help                       Print help information
     -V, --version                    Print version information
@@ -47,4 +49,4 @@ OPTIONS:
 - 使用字典枚举
 - 支持 socks5 代理
 - 支持网络错误重试机制
-- 支持自定义 headers、cookies
+- ~~支持自定义 headers、cookies~~

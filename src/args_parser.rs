@@ -1,4 +1,5 @@
-use clap::{crate_version, App, AppSettings, Arg, ArgMatches};
+use clap::{crate_version, App, AppSettings, Arg, ArgMatches, ArgAction};
+use log::debug;
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
@@ -11,6 +12,9 @@ pub struct AppArgs {
     pub length: usize,
     pub user_agent: String,
     pub random_user_agent: bool,
+
+    pub cookies: Option<String>,
+    pub headers: Vec<String>,
 
     // not in cli args.
     pub user_agent_list: Vec<String>,
@@ -68,25 +72,43 @@ fn get_arg_matches() -> ArgMatches {
                 .long("empty-suffix")
                 .help("是否枚举空后缀，默认枚举")
                 .takes_value(false)
-        ).arg(
-        Arg::new("output")
-            .short('o')
-            .long("output")
-            .help("输出文件路径")
-            .takes_value(true)
-            .default_value("./enum-dir-result.txt")
-    ).arg(
-        Arg::new("user-agent")
-            .long("user-agent")
-            .help("指定扫描时候的UA，默认使用 enum-dir 内置的UA")
-            .takes_value(true)
-            .default_value("EnumDir/0.0.1")
-    ).arg(
-        Arg::new("random-user-agent")
-            .long("random-user-agent")
-            .help("使用随机的 user-agent，来源于 sqlmap，thanks sqlmap")
-            .takes_value(false)
-    ).get_matches()
+        )
+        .arg(
+            Arg::new("output")
+                .short('o')
+                .long("output")
+                .help("输出文件路径")
+                .takes_value(true)
+                .default_value("./enum-dir-result.txt")
+        )
+        .arg(
+            Arg::new("user-agent")
+                .long("user-agent")
+                .help("指定扫描时候的UA，默认使用 enum-dir 内置的UA")
+                .takes_value(true)
+                .default_value("EnumDir/0.0.1")
+        )
+        .arg(
+            Arg::new("cookie")
+                .short('c')
+                .long("cookie")
+                .help("指定枚举时使用的cookie")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::new("header")
+                .action(ArgAction::Append)
+                .short('H')
+                .long("header")
+                .help("指定枚举时的 http header")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::new("random-user-agent")
+                .long("random-user-agent")
+                .help("使用随机的 user-agent，来源于 sqlmap，thanks sqlmap")
+                .takes_value(false)
+        ).get_matches()
 }
 
 pub fn parse() -> Result<AppArgs, &'static str> {
@@ -152,6 +174,17 @@ pub fn parse() -> Result<AppArgs, &'static str> {
         app_args.user_agent_list = read_user_agent();
     }
 
+    // 获取 cookie
+    let cookie = options.get_one::<String>("cookie").cloned();
+    app_args.cookies = cookie;
+
+    // 获取 headers
+    let headers: Vec<&str> = options.values_of("header").unwrap().collect::<Vec<_>>();
+    for h in headers {
+        app_args.headers.push(h.to_owned());
+    }
+
+    debug!("app_args: {:?}", app_args);
     Ok(app_args)
 }
 

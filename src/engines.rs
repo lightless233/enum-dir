@@ -38,7 +38,7 @@ pub async fn builder(
         .collect::<Vec<_>>();
 
     // 按照预定长度生成枚举字符串，并放到 channel 中
-    let mut current_length = 0;
+    let mut current_length = 1;
     for idx in 1..=args.length {
         let product = (1..=idx).map(|_| pool.iter()).multi_cartesian_product();
         for it in product {
@@ -104,6 +104,27 @@ pub async fn worker(
             let random_ua = args.user_agent_list.choose(&mut rand::thread_rng());
             request = request.header("User-Agent", random_ua.unwrap());
         }
+
+        // 如果在 CLI 参数中设置了 header 则依次添加
+        for header in &args.headers {
+            let header_part = header.splitn(2, ':').collect::<Vec<&str>>();
+
+            // 跳过不合法的header
+            if header_part.len() < 2 {
+                continue;
+            }
+
+            let key = header_part[0].trim();
+            let value = header_part[1].trim();
+
+            request = request.header(key, value);
+        }
+
+        // 如果在 CLI 参数中设置了 cookie 则添加一个 cookie 头
+        if let Some(cookie) = &args.cookies {
+            request = request.header("Cookie", cookie);
+        }
+
         match request.send().await {
             Ok(r) => {
                 let code = r.status().as_u16();
