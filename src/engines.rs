@@ -61,6 +61,7 @@ pub async fn builder(
             }
         }
     }
+    info!("length {} build done.", current_length);
 
     app_context.lock().await.builder_status = WorkerStatus::Stop;
     info!("builder end!");
@@ -138,9 +139,10 @@ pub async fn worker(
                     };
                     // TODO 有个问题，如果只发送引用过去会不会性能好一点
                     let _ = result_channel.send(result).await;
+                    break;
                 }
                 Err(e) => {
-                    warn!("HTTP Request to {} failed, retry {}, error: {}",url, c, e);
+                    warn!("HTTP Request to {} failed, retry {}, error: {}",url, c+1, e);
                 }
             };
         }

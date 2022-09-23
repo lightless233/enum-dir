@@ -1,4 +1,4 @@
-use clap::{App, AppSettings, Arg, ArgAction, ArgMatches, crate_version};
+use clap::{App, AppSettings, Arg, ArgAction, ArgMatches, crate_version, value_parser};
 use log::debug;
 
 #[derive(Debug, Default)]
@@ -117,7 +117,7 @@ fn get_arg_matches() -> ArgMatches {
                 .help("当某次请求失败是，重试次数，默认为2")
                 .takes_value(true)
                 .default_value("2")
-                // .value_parser(value_parser!(usize))
+                .value_parser(value_parser!(usize))
         )
         .get_matches()
 }
@@ -202,7 +202,7 @@ pub fn parse() -> Result<AppArgs, &'static str> {
     // }
 
     // http 重试次数
-    let http_retries = options.get_one::<usize>("http_retry").unwrap();
+    let http_retries = options.get_one::<usize>("http-retry").unwrap();
     app_args.http_retries = http_retries.to_owned();
 
     debug!("app_args: {:?}", app_args);
