@@ -1,4 +1,4 @@
-use clap::{crate_version, App, AppSettings, Arg, ArgMatches, ArgAction};
+use clap::{App, AppSettings, Arg, ArgAction, ArgMatches, crate_version};
 use log::debug;
 
 #[derive(Debug, Default)]
@@ -15,6 +15,8 @@ pub struct AppArgs {
 
     pub cookies: Option<String>,
     pub headers: Vec<String>,
+
+    pub http_retries: usize,
 
     // not in cli args.
     pub user_agent_list: Vec<String>,
@@ -82,13 +84,6 @@ fn get_arg_matches() -> ArgMatches {
                 .default_value("./enum-dir-result.txt")
         )
         .arg(
-            Arg::new("user-agent")
-                .long("user-agent")
-                .help("指定扫描时候的UA，默认使用 enum-dir 内置的UA")
-                .takes_value(true)
-                .default_value("EnumDir/0.0.1")
-        )
-        .arg(
             Arg::new("cookie")
                 .short('c')
                 .long("cookie")
@@ -104,11 +99,27 @@ fn get_arg_matches() -> ArgMatches {
                 .takes_value(true)
         )
         .arg(
+            Arg::new("user-agent")
+                .long("user-agent")
+                .help("指定扫描时候的UA，默认使用 enum-dir 内置的UA")
+                .takes_value(true)
+                .default_value("EnumDir/0.0.1")
+        )
+        .arg(
             Arg::new("random-user-agent")
                 .long("random-user-agent")
                 .help("使用随机的 user-agent，来源于 sqlmap，thanks sqlmap")
                 .takes_value(false)
-        ).get_matches()
+        )
+        .arg(
+            Arg::new("http-retry")
+                .long("http-retry")
+                .help("当某次请求失败是，重试次数，默认为2")
+                .takes_value(true)
+                .default_value("2")
+                // .value_parser(value_parser!(usize))
+        )
+        .get_matches()
 }
 
 pub fn parse() -> Result<AppArgs, &'static str> {
@@ -179,10 +190,20 @@ pub fn parse() -> Result<AppArgs, &'static str> {
     app_args.cookies = cookie;
 
     // 获取 headers
-    let headers: Vec<&str> = options.values_of("header").unwrap().collect::<Vec<_>>();
-    for h in headers {
-        app_args.headers.push(h.to_owned());
+    if let Some(header) = options.values_of("header") {
+        let headers = header.collect::<Vec<_>>();
+        for h in headers {
+            app_args.headers.push(h.to_owned());
+        }
     }
+    // let headers: Vec<&str> = options.values_of("header").unwrap().collect::<Vec<_>>();
+    // for h in headers {
+    //     app_args.headers.push(h.to_owned());
+    // }
+
+    // http 重试次数
+    let http_retries = options.get_one::<usize>("http_retry").unwrap();
+    app_args.http_retries = http_retries.to_owned();
 
     debug!("app_args: {:?}", app_args);
     Ok(app_args)

@@ -97,7 +97,9 @@ pub async fn worker(
         };
 
         // TODO 添加 socks5 代理配置
+        // 解析出指定的 HTTP Method
         let method = Method::from_bytes(args.request_method.as_bytes()).unwrap();
+
         // 如果使用了 random-user-agent 选项，就随机一个 agent 出来，然后塞到头里
         let mut request = http_client.request(method, &url);
         if args.random_user_agent {
@@ -125,20 +127,22 @@ pub async fn worker(
             request = request.header("Cookie", cookie);
         }
 
-        match request.send().await {
-            Ok(r) => {
-                let code = r.status().as_u16();
-                let result = EnumResult {
-                    status_code: code,
-                    url,
-                };
-                // debug!("EnumResult: {:?}", _result);
-                let _ = result_channel.send(result).await;
-            }
-            Err(e) => {
-                // TODO 发包失败了，重试一下，重试策略放到参数里
-                info!("{}", e);
-            }
+        // 根据重试策略，进行重试
+        for c in 0..args.http_retries {
+            match request.try_clone().unwrap().send().await {
+                Ok(r) => {
+                    let code = r.status().as_u16();
+                    let result = EnumResult {
+                        status_code: code,
+                        url: url.clone(),
+                    };
+                    // TODO 有个问题，如果只发送引用过去会不会性能好一点
+                    let _ = result_channel.send(result).await;
+                }
+                Err(e) => {
+                    warn!("HTTP Request to {} failed, retry {}, error: {}",url, c, e);
+                }
+            };
         }
     }
 
