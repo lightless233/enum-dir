@@ -1,8 +1,9 @@
 use std::{sync::Arc, time::Duration, vec};
+use std::process::exit;
 
 use async_channel::{Receiver, Sender};
 use itertools::Itertools;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use rand::prelude::SliceRandom;
 use reqwest::{ClientBuilder, Method};
 use tokio::fs::File;
@@ -82,6 +83,17 @@ pub async fn worker(
     if !args.random_user_agent {
         builder = builder.user_agent(&args.user_agent);
     }
+
+    // 如果在CLI参数中指定了代理，则把代理设置进去，默认对 http/https 协议都生效
+    if let Some(proxy) = &args.proxy {
+        let _proxy = reqwest::Proxy::all(proxy);
+        if _proxy.is_err() {
+            error!("代理设置错误！");
+            exit(-1);
+        }
+        builder = builder.proxy(_proxy.unwrap());
+    }
+
     let http_client = builder.build().unwrap();
 
     loop {

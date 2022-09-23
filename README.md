@@ -36,17 +36,18 @@ OPTIONS:
                                      [default: html,htm,php,zip,tar.gz,tar.bz2]
     -e, --empty-suffix               是否枚举空后缀，默认枚举
     -o, --output <output>            输出文件路径 [default: ./enum-dir-result.txt]
-        --user-agent <user-agent>    指定扫描时候的UA，默认使用 enum-dir 内置的UA [default:
-                                     EnumDir/0.0.1]
     -c, --cookie <cookie>            指定枚举时使用的cookie
     -H, --header <header>            指定枚举时的 http header
+        --user-agent <user-agent>    指定扫描时候的UA，默认使用 enum-dir 内置的UA [default: EnumDir/0.0.1]
         --random-user-agent          使用随机的 user-agent，来源于 sqlmap，thanks sqlmap
+        --http-retry <http-retry>    当某次请求失败是，重试次数，默认为2 [default: 2]
+    -p, --proxy <proxy>              socks5 代理或 http 代理，例如 socks5://127.0.0.1:1080
     -h, --help                       Print help information
     -V, --version                    Print version information
 ```
 
 # 3. 支持计划
 - 使用字典枚举
-- 支持 socks5 代理
-- 支持网络错误重试机制
+- ~~支持 socks5 代理~~
+- ~~支持网络错误重试机制~~
 - ~~支持自定义 headers、cookies~~

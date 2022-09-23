@@ -12,11 +12,10 @@ pub struct AppArgs {
     pub length: usize,
     pub user_agent: String,
     pub random_user_agent: bool,
-
     pub cookies: Option<String>,
     pub headers: Vec<String>,
-
     pub http_retries: usize,
+    pub proxy: Option<String>,
 
     // not in cli args.
     pub user_agent_list: Vec<String>,
@@ -26,7 +25,7 @@ fn get_arg_matches() -> ArgMatches {
     App::new("enum-dir")
         .setting(AppSettings::ArgRequiredElseHelp)
         .setting(AppSettings::DeriveDisplayOrder)
-        .about("brute subdomains in Rust.")
+        .about("Enum dir/path/file on target URL.")
         .version(crate_version!())
         .arg(
             Arg::new("target")
@@ -119,6 +118,13 @@ fn get_arg_matches() -> ArgMatches {
                 .default_value("2")
                 .value_parser(value_parser!(usize))
         )
+        .arg(
+            Arg::new("proxy")
+                .long("proxy")
+                .short('p')
+                .takes_value(true)
+                .help("socks5 代理或 http 代理，例如 socks5://127.0.0.1:1080")
+        )
         .get_matches()
 }
 
@@ -196,14 +202,14 @@ pub fn parse() -> Result<AppArgs, &'static str> {
             app_args.headers.push(h.to_owned());
         }
     }
-    // let headers: Vec<&str> = options.values_of("header").unwrap().collect::<Vec<_>>();
-    // for h in headers {
-    //     app_args.headers.push(h.to_owned());
-    // }
 
     // http 重试次数
     let http_retries = options.get_one::<usize>("http-retry").unwrap();
     app_args.http_retries = http_retries.to_owned();
+
+    // 代理设置
+    let proxy = options.get_one::<String>("proxy");
+    app_args.proxy = proxy.cloned();
 
     debug!("app_args: {:?}", app_args);
     Ok(app_args)
