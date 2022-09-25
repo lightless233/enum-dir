@@ -72,7 +72,7 @@ pub async fn worker(
     idx: usize,
     args: Arc<AppArgs>,
     task_channel: Receiver<String>,
-    result_channel: Sender<EnumResult>,
+    result_channel: Sender<Arc<EnumResult>>,
     app_context: Arc<Mutex<AppContext>>,
 ) {
     debug!("engine worker {} start", idx);
@@ -149,8 +149,7 @@ pub async fn worker(
                         status_code: code,
                         url: url.clone(),
                     };
-                    // TODO 有个问题，如果只发送引用过去会不会性能好一点
-                    let _ = result_channel.send(result).await;
+                    let _ = result_channel.send(Arc::new(result)).await;
                     break;
                 }
                 Err(e) => {
@@ -166,7 +165,7 @@ pub async fn worker(
 pub async fn saver(
     app_context: Arc<Mutex<AppContext>>,
     args: Arc<AppArgs>,
-    result_channel: Receiver<EnumResult>,
+    result_channel: Receiver<Arc<EnumResult>>,
 ) {
     let output = &args.output;
     let mut output_file_handler = File::create(output).await.unwrap();

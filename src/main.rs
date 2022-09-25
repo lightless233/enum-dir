@@ -27,7 +27,8 @@ async fn main() {
 
     // 任务通道
     let (task_tx, task_rx) = async_channel::bounded::<String>(1024);
-    let (saver_tx, saver_rx) = async_channel::bounded::<EnumResult>(1024);
+    // let (saver_tx, saver_rx) = async_channel::bounded::<EnumResult>(1024);
+    let (saver_tx, saver_rx) = async_channel::bounded::<Arc<EnumResult>>(1024);
 
     // 启动不同的协程
     // task builder
