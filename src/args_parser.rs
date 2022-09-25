@@ -1,8 +1,5 @@
-use std::process::exit;
 use clap::{App, AppSettings, Arg, ArgAction, ArgMatches, crate_version, value_parser};
-
-use clap::parser::ValuesRef;
-use log::{debug, logger};
+use log::debug;
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
