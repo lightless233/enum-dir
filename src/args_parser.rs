@@ -1,5 +1,8 @@
+use std::process::exit;
 use clap::{App, AppSettings, Arg, ArgAction, ArgMatches, crate_version, value_parser};
-use log::debug;
+
+use clap::parser::ValuesRef;
+use log::{debug, logger};
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
@@ -16,6 +19,7 @@ pub struct AppArgs {
     pub headers: Vec<String>,
     pub http_retries: usize,
     pub proxy: Option<String>,
+    pub dict_path: Option<String>,
 
     // not in cli args.
     pub user_agent_list: Vec<String>,
@@ -36,12 +40,21 @@ fn get_arg_matches() -> ArgMatches {
                 .required(true),
         )
         .arg(
+            Arg::new("dict")
+                .short('d')
+                .long("dict")
+                .help("字典模式，指定此模式后，将禁用枚举模式，如果为空，则使用内置字典")
+                .takes_value(true)
+                .default_missing_value(""),
+        )
+        .arg(
             Arg::new("length")
                 .short('l')
                 .long("length")
                 .help("爆破文件名的最大长度，默认为3")
                 .default_value("3")
-                .takes_value(true),
+                .takes_value(true)
+                .value_parser(value_parser!(usize)),
         )
         .arg(
             Arg::new("method")
@@ -57,7 +70,8 @@ fn get_arg_matches() -> ArgMatches {
                 .long("task-count")
                 .help("最大并发数量，默认为25")
                 .default_value("25")
-                .takes_value(true),
+                .takes_value(true)
+                .value_parser(value_parser!(usize)),
         )
         .arg(
             Arg::new("suffix")
@@ -96,6 +110,7 @@ fn get_arg_matches() -> ArgMatches {
                 .long("header")
                 .help("指定枚举时的 http header")
                 .takes_value(true)
+                .value_parser(value_parser!(String))
         )
         .arg(
             Arg::new("user-agent")
@@ -151,18 +166,16 @@ pub fn parse() -> Result<AppArgs, &'static str> {
         format!("{}/", target)
     };
 
-    app_args.length = options
-        .get_one::<String>("length")
-        .unwrap()
-        .parse::<usize>()
-        .unwrap_or(3);
+    // 解析是否使用了字典模式
+    if options.is_present("dict") {
+        let dict_path = options.get_one::<String>("dict").unwrap().to_owned();
+        app_args.dict_path = Some(dict_path);
+    } else {
+        app_args.dict_path = None;
+    }
 
-    app_args.task_count = options
-        .get_one::<String>("task-count")
-        .unwrap()
-        .parse::<usize>()
-        .unwrap_or(25);
-
+    app_args.length = options.get_one::<usize>("length").unwrap().to_owned();
+    app_args.task_count = options.get_one::<usize>("task-count").unwrap().to_owned();
     app_args.suffix = options.get_one::<String>("suffix").unwrap().to_owned();
     app_args.empty_suffix = options.is_present("empty-suffix");
     app_args.output = options.get_one::<String>("output").unwrap().to_owned();
@@ -196,8 +209,9 @@ pub fn parse() -> Result<AppArgs, &'static str> {
     app_args.cookies = cookie;
 
     // 获取 headers
-    if let Some(header) = options.values_of("header") {
-        let headers = header.collect::<Vec<_>>();
+    // let headers: Option<ValuesRef<String>> = options.try_get_many("header").unwrap();
+    if let Some(header) = options.try_get_many("header").unwrap() {
+        let headers = header.collect::<Vec<&String>>();
         for h in headers {
             app_args.headers.push(h.to_owned());
         }
