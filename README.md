@@ -2,7 +2,7 @@
 
 一款快速枚举目录的小工具，使用 Rust 编写，扫起来真的很快。
 
-用于发现目标站点中可能存在的路径信息。
+用于发现目标站点中可能存在的路径信息，同时支持字典模式和暴力枚举模式。
 
 > 本工具仅用于学习 Rust 以及 Rust 协程 Tokio 使用，严禁用于非法用途。
 > 
@@ -29,6 +29,7 @@ USAGE:
 
 OPTIONS:
     -t, --target <target>            待爆破文件的链接，例如 https://example.com/
+    -d, --dict <dict>                字典模式，指定此模式后，将禁用枚举模式，如果为空，则使用内置字典
     -l, --length <length>            爆破文件名的最大长度，默认为3 [default: 3]
     -m, --method <method>            枚举时使用的 HTTP 方法，默认为 HEAD [default: HEAD]
     -n, --task-count <task-count>    最大并发数量，默认为25 [default: 25]
@@ -46,8 +47,38 @@ OPTIONS:
     -V, --version                    Print version information
 ```
 
+## 2.1 字典模式说明
+字典为纯文本文件，每行一个，支持以下特殊格式：
+```plain
+# 井号开头的行为注释行，扫描时将会自动忽略，同时也会忽略空行
+
+# 以下为普通的字典内容
+admin/index.php
+/admin/index.php.bak
+
+# 如果字典中出现 %EXT% ，则会使用指定的 suffix 依次替换
+# 例如：index.%EXT%，使用默认 suffix 时，
+# 在扫描时会生成如下的列表：
+# index.html, index.htm, index.php, index.zip, index.tar.gz, index.tar.bz2
+index.%EXT%
+
+# 除了 %EXT% 外，还支持以下占位符 （正在开发中）
+# %ALPHA%：使用 a-zA-Z 的字符占位
+# %NUMBER%：使用 0-9 的字符占位
+# %ALPHANUM%：使用 0-9a-zA-Z 的字符占位
+# 例如 foo/%ALPHANUM%.%EXT% 将会依次生成：
+# foo/0.html
+# foo/0.htm
+# foo/0.php
+# ...
+# foo/Z.tar.gz
+# foo/Z.tar.bz2
+```
+
 # 3. 支持计划
-- 使用字典枚举
+- ~~使用字典枚举~~
 - ~~支持 socks5 代理~~
 - ~~支持网络错误重试机制~~
 - ~~支持自定义 headers、cookies~~
+- 字典模式中，支持通过占位符动态生成枚举串
+- 性能优化

@@ -113,7 +113,19 @@ async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &
     // 获取 suffixes
     let suffixes = get_suffix_from_cli(args);
 
-    for item in dict_lines {
+    for line in dict_lines {
+        // 跳过空行和注释行
+        if line.is_empty() || line.starts_with("#") {
+            continue;
+        }
+
+        // 如果字典中的某一项是以 / 开头的，则去掉 / 符号
+        let item = if line.starts_with('/') {
+            line.trim_start_matches('/')
+        } else {
+            line
+        };
+
         // 如果字典中有 %EXT% 则替换为设置的后缀，没有的话就直接发送任务
         if item.contains("%EXT%") {
             for suffix in &suffixes {
