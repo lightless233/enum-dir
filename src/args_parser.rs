@@ -1,7 +1,9 @@
-use clap::{App, AppSettings, Arg, ArgAction, ArgMatches, crate_version, value_parser};
+use clap::{crate_version, value_parser, App, AppSettings, Arg, ArgAction, ArgMatches};
+use derivative::Derivative;
 use log::debug;
 
-#[derive(Debug, Default)]
+#[derive(Derivative, Default)]
+#[derivative(Debug)]
 pub struct AppArgs {
     pub target: String,
     pub task_count: usize,
@@ -19,6 +21,7 @@ pub struct AppArgs {
     pub dict_path: Option<String>,
 
     // not in cli args.
+    #[derivative(Debug = "ignore")]
     pub user_agent_list: Vec<String>,
 }
 

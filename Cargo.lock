@@ -194,6 +194,7 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "clap",
+ "derivative",
  "itertools",
  "log",
  "log4rs",

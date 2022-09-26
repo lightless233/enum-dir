@@ -8,11 +8,12 @@ version = "0.1.0"
 [dependencies]
 async-channel = "1.7.1"
 clap = {version = "3.2.8", features = ["derive", "cargo"]}
+derivative = "2.2.0"
 itertools = "0.10.2"
 log = "0.4.17"
 log4rs = "1.1.1"
-tokio = {version = "1.19.2", features = ["rt", "macros", "rt-multi-thread", "fs"]}
 rand = "0.8.5"
+tokio = {version = "1.19.2", features = ["rt", "macros", "rt-multi-thread", "fs"]}
 
 [dependencies.reqwest]
 default-features = false

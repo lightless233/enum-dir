@@ -4,11 +4,18 @@ use crate::WorkerStatus;
 use async_channel::Sender;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
+use std::vec;
 use tokio::fs::read_to_string;
 use tokio::sync::Mutex;
+
+/**
+ * 合法的 PAT 列表
+ */
+static PAT: [&str; 4] = ["%ALPHA%", "%NUMBER%", "%ALPHANUM%", "%EXT%"];
 
 /**
  * 通过迭代器生成待枚举的文件名，并放到 channel 中
@@ -113,9 +120,34 @@ async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &
     // 获取 suffixes
     let suffixes = get_suffix_from_cli(args);
 
+    // 为 pattern 构建 pool
+    let mut pools = HashMap::new();
+    pools.insert(
+        "%ALPHA%",
+        ('a'..='z')
+            .chain('A'..='Z')
+            .map(|it| it.to_string())
+            .collect::<Vec<String>>(),
+    );
+    pools.insert(
+        "%NUMBER%",
+        ('0'..='9')
+            .map(|it| it.to_string())
+            .collect::<Vec<String>>(),
+    );
+    pools.insert(
+        "%ALPHANUM%",
+        ('a'..='z')
+            .chain('A'..='Z')
+            .chain('0'..='9')
+            .map(|it| it.to_string())
+            .collect::<Vec<String>>(),
+    );
+    pools.insert("%EXT%", suffixes);
+
     for line in dict_lines {
         // 跳过空行和注释行
-        if line.is_empty() || line.starts_with("#") {
+        if line.is_empty() || line.starts_with('#') {
             continue;
         }
 
@@ -126,28 +158,94 @@ async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &
             line
         };
 
-        // 如果字典中有 %EXT% 则替换为设置的后缀，没有的话就直接发送任务
-        if item.contains("%EXT%") {
-            for suffix in &suffixes {
-                let task = item.replace("%EXT%", suffix);
-                let result = task_channel.send(task.clone()).await;
-                if result.is_err() {
-                    warn!(
-                        "Error put task to channel, task: {}, error: {:?}",
-                        task,
-                        result.unwrap_err().0
-                    );
+        let line_parts = get_line_part(item);
+        if line_parts.is_err() {
+            warn!("字典格式错误，错误：{}", line);
+            continue;
+        }
+
+        let mut tasks: Vec<String> = vec![];
+        for pat in line_parts.unwrap() {
+            if let Some(pool) = pools.get(pat.as_str()) {
+                // 当前部分是占位符
+                if tasks.is_empty() {
+                    pool.iter().for_each(|it| tasks.push(it.to_owned()));
+                } else {
+                    let tmp = tasks.clone();
+                    let product = tmp.iter().cartesian_product(pool);
+                    tasks.clear();
+                    product.for_each(|it| tasks.push(format!("{}{}", it.0, it.1)));
+                }
+            } else {
+                // 当前部分不是占位符，直接往 tasks 里塞东西
+                if tasks.is_empty() {
+                    tasks.push(pat);
+                } else {
+                    let tmp = tasks.clone();
+                    tasks.clear();
+                    for item in tmp {
+                        tasks.push(format!("{}{}", item, pat));
+                    }
                 }
             }
-        } else {
-            let result = task_channel.send(item.to_owned()).await;
-            if result.is_err() {
+        }
+
+        debug!("tasks: {:?}, line: {}", tasks, line);
+        for task in tasks {
+            if let Err(e) = task_channel.send(task.clone()).await {
                 warn!(
-                    "Error put task to channel, task: {}, error: {:?}",
-                    item,
-                    result.unwrap_err().0
+                    "Error put task to channel, line: {}, task: {}, error: {:?}",
+                    line, task, e
                 );
             }
-        };
+        }
     }
+}
+
+/**
+ * 一个小型的状态机，解析字典中的每一行数据，并且将占位符分割出来
+ */
+fn get_line_part(line: &str) -> Result<Vec<String>, String> {
+    // 记录 FSM 当前的状态
+    // 0: 在 %XXX% 外面，直接记录每一个字符
+    // 1: 在 %XXX% 里面，等到下一次%的时候检查缓冲区里的内容
+    let mut status: u8 = 0;
+
+    let mut result: Vec<String> = vec![];
+    let mut tmp_buffer: Vec<char> = vec![];
+
+    for c in line.chars() {
+        if c == '%' {
+            match status {
+                0 => {
+                    // 开始进入 pat，把 tmp_buffer 清空，开始记录 pat
+                    if !tmp_buffer.is_empty() {
+                        result.push(tmp_buffer.iter().collect::<String>());
+                        tmp_buffer.clear();
+                    }
+                    tmp_buffer.push(c);
+                    status = 1;
+                }
+                1 => {
+                    // pat 结束的标志
+                    tmp_buffer.push(c);
+                    let t: String = tmp_buffer.iter().collect::<String>();
+                    if !PAT.contains(&t.as_str()) {
+                        return Err(format!("Pattern error! line: {}", line));
+                    }
+                    result.push(t);
+                    tmp_buffer.clear();
+                    status = 0;
+                }
+                _ => continue,
+            }
+        } else {
+            tmp_buffer.push(c);
+        }
+    }
+    if !tmp_buffer.is_empty() {
+        result.push(tmp_buffer.iter().collect::<String>());
+    }
+
+    Ok(result)
 }
