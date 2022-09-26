@@ -190,7 +190,7 @@ async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &
             }
         }
 
-        debug!("tasks: {:?}, line: {}", tasks, line);
+        // debug!("tasks: {:?}, line: {}", tasks, line);
         for task in tasks {
             if let Err(e) = task_channel.send(task.clone()).await {
                 warn!(
