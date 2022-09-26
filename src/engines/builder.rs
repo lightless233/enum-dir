@@ -159,13 +159,8 @@ async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &
         };
 
         let line_parts = get_line_part(item);
-        if line_parts.is_err() {
-            warn!("字典格式错误，错误：{}", line);
-            continue;
-        }
-
         let mut tasks: Vec<String> = vec![];
-        for pat in line_parts.unwrap() {
+        for pat in line_parts {
             if let Some(pool) = pools.get(pat.as_str()) {
                 // 当前部分是占位符
                 if tasks.is_empty() {
@@ -205,7 +200,7 @@ async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &
 /**
  * 一个小型的状态机，解析字典中的每一行数据，并且将占位符分割出来
  */
-fn get_line_part(line: &str) -> Result<Vec<String>, String> {
+fn get_line_part(line: &str) -> Vec<String> {
     // 记录 FSM 当前的状态
     // 0: 在 %XXX% 外面，直接记录每一个字符
     // 1: 在 %XXX% 里面，等到下一次%的时候检查缓冲区里的内容
@@ -230,9 +225,6 @@ fn get_line_part(line: &str) -> Result<Vec<String>, String> {
                     // pat 结束的标志
                     tmp_buffer.push(c);
                     let t: String = tmp_buffer.iter().collect::<String>();
-                    if !PAT.contains(&t.as_str()) {
-                        return Err(format!("Pattern error! line: {}", line));
-                    }
                     result.push(t);
                     tmp_buffer.clear();
                     status = 0;
@@ -247,5 +239,5 @@ fn get_line_part(line: &str) -> Result<Vec<String>, String> {
         result.push(tmp_buffer.iter().collect::<String>());
     }
 
-    Ok(result)
+    result
 }
