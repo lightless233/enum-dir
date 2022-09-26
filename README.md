@@ -57,16 +57,16 @@ admin/index.php
 /admin/index.php.bak
 
 # 如果字典中出现 %EXT% ，则会使用指定的 suffix 依次替换
-# 例如：index.%EXT%，使用默认 suffix 时，
+# 例如：index%EXT%，使用默认 suffix 时，
 # 在扫描时会生成如下的列表：
 # index.html, index.htm, index.php, index.zip, index.tar.gz, index.tar.bz2
-index.%EXT%
+index%EXT%
 
-# 除了 %EXT% 外，还支持以下占位符 （正在开发中）
+# 除了 %EXT% 外，还支持以下占位符
 # %ALPHA%：使用 a-zA-Z 的字符占位
 # %NUMBER%：使用 0-9 的字符占位
 # %ALPHANUM%：使用 0-9a-zA-Z 的字符占位
-# 例如 foo/%ALPHANUM%.%EXT% 将会依次生成：
+# 例如 foo/%ALPHANUM%%EXT% 将会依次生成：
 # foo/0.html
 # foo/0.htm
 # foo/0.php
@@ -75,10 +75,29 @@ index.%EXT%
 # foo/Z.tar.bz2
 ```
 
+## 2.2 使用样例
+```shell
+# 使用内置字典对目标进行枚举，允许空后缀（内置的字典为 ./dicts/default.txt，如果想使用其他字典，需要手动指定）
+$ ./enum-dir -t https://example.com/ -e -d 
+
+# 使用指定字典对目标进行枚举，允许空后缀
+$ ./enum-dir -t https://example.com/ -e -d ./dicts/top.txt
+
+# 爆破模式，爆破长度为1-5，允许空后缀，使用50个协程并发
+$ ./enum-dir -t https://example.com/ -e -l 5 -n 50
+
+# 爆破模式，指定 HTTP Method 为 GET，并且使用指定的 HTTP 头
+$ ./enum-dir -t https://example.com/ -m GET -H "Content-Type: application/json" -H "X-Auth: 11223344"
+
+# 字典模式，内置字典，随机UA，指定输出文件
+$ ./enum-dir -t https://example.com/ --random-user-agent -d -o ./output.txt
+```
+
 # 3. 支持计划
 - ~~使用字典枚举~~
 - ~~支持 socks5 代理~~
 - ~~支持网络错误重试机制~~
 - ~~支持自定义 headers、cookies~~
-- 字典模式中，支持通过占位符动态生成枚举串
+- ~~字典模式中，支持通过占位符动态生成枚举串~~
+- github action 自动构建二进制文件
 - 性能优化
