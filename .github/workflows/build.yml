@@ -97,9 +97,8 @@ jobs:
           sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*
 
       - name: Build release
-        shell: bash
-        run: |
-          ./build/build-macos.sh ${{ matrix.target }}
+        run: bash build/build-macos.sh ${{ matrix.target }}
+
       - name: Upload Github Assets
         uses: softprops/action-gh-release@v1
         env:
