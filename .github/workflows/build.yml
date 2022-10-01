@@ -55,10 +55,12 @@ jobs:
         timeout-minutes: 120
         run: |
           cross build --target ${{ matrix.target }} --release
+          mkdir build_tmp
+          tar czvf build_tmp/${{ matrix.target }}.tar.gz -C ./target/${{ matrix.target }}/release/ enum-dir
       - name: Upload Github Assets
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: target/${{ matrix.target }}/release/enum-dir
+          files: build_tmp/*
           prerelease: ${{ contains(github.ref, '-') }}
