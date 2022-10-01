@@ -60,5 +60,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: build/release/*
+          files: target/${{ matrix.target }}/release/enum-dir
           prerelease: ${{ contains(github.ref, '-') }}
