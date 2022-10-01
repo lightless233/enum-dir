@@ -3,7 +3,7 @@ echo "current target: $TARGET"
 PKG_NAME="${TARGET}.tar.gz"
 
 cross build --target "$TARGET" --release
-mkdir build_tmp
+mkdir -p build_tmp
 
 if [[ "$TARGET" == *"-linux-"* ]]; then
     tar czvf "build_tmp/$PKG_NAME" -C "./target/$TARGET/release/" enum-dir
