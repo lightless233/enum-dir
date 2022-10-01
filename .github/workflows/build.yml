@@ -54,9 +54,7 @@ jobs:
       - name: Build ${{ matrix.target }}
         timeout-minutes: 120
         run: |
-          cross build --target ${{ matrix.target }} --release
-          mkdir build_tmp
-          tar czvf build_tmp/${{ matrix.target }}.tar.gz -C ./target/${{ matrix.target }}/release/ enum-dir
+          ./build/build.sh
       - name: Upload Github Assets
         uses: softprops/action-gh-release@v1
         env:
