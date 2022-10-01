@@ -1,6 +1,6 @@
 TARGET=$1
 echo "current target: $TARGET"
-PKG_NAME="${TARGET}.tar.gz"
+PKG_NAME="enum-dir.$TARGET.tar.gz"
 
 cross build --target "$TARGET" --release
 mkdir -p build_tmp
