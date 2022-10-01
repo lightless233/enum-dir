@@ -54,7 +54,7 @@ jobs:
       - name: Build ${{ matrix.target }}
         timeout-minutes: 120
         run: |
-          ./build/build.sh
+          sh ./build/build.sh ${{ matrix.target }}
       - name: Upload Github Assets
         uses: softprops/action-gh-release@v1
         env:
