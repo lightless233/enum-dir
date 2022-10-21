@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 /**
  * 合法的 PAT 列表
  */
-static PAT: [&str; 4] = ["%ALPHA%", "%NUMBER%", "%ALPHANUM%", "%EXT%"];
+// static PAT: [&str; 4] = ["%ALPHA%", "%NUMBER%", "%ALPHANUM%", "%EXT%"];
 
 /**
  * 通过迭代器生成待枚举的文件名，并放到 channel 中
@@ -80,7 +80,8 @@ async fn enum_builder(task_channel: Sender<String>, args: &AppArgs) {
                 current_length = idx;
             }
             for s in &suffixes {
-                let path_name = it.iter().map(|&x| x).join("");
+                // let path_name = it.iter().map(|&x| x).join("");
+                let path_name = it.iter().cloned().join("");
                 let task = format!("{}{}", path_name, s);
                 // debug!("task: {}", task);
                 let result = task_channel.send(task.clone()).await;

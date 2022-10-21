@@ -99,5 +99,5 @@ $ ./enum-dir -t https://example.com/ --random-user-agent -d -o ./output.txt
 - ~~支持网络错误重试机制~~
 - ~~支持自定义 headers、cookies~~
 - ~~字典模式中，支持通过占位符动态生成枚举串~~
-- github action 自动构建二进制文件
+- ~~github action 自动构建二进制文件~~
 - 性能优化

@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "enum-dir"
-version = "0.1.0"
+version = "0.1.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,6 +13,7 @@ itertools = "0.10.2"
 log = "0.4.17"
 log4rs = "1.1.1"
 rand = "0.8.5"
+regex = "1"
 tokio = {version = "1.19.2", features = ["rt", "macros", "rt-multi-thread", "fs"]}
 
 [dependencies.reqwest]

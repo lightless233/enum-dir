@@ -1,5 +1,6 @@
-use std::{sync::Arc, time::Duration};
+use regex::Regex;
 use std::process::exit;
+use std::{sync::Arc, time::Duration};
 
 use async_channel::{Receiver, Sender};
 use log::{debug, error, info, warn};
@@ -9,8 +10,8 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
-use crate::{args_parser::AppArgs, context::AppContext, WorkerStatus};
 use crate::context::EnumResult;
+use crate::{args_parser::AppArgs, context::AppContext, WorkerStatus};
 
 pub mod builder;
 pub use builder::builder;
@@ -91,15 +92,26 @@ pub async fn worker(
             match request.try_clone().unwrap().send().await {
                 Ok(r) => {
                     let code = r.status().as_u16();
+                    let content = if args.request_method != "HEAD" {
+                        Some(r.text().await.unwrap())
+                    } else {
+                        None
+                    };
                     let result = EnumResult {
                         status_code: code,
                         url: url.clone(),
+                        content,
                     };
                     let _ = result_channel.send(Arc::new(result)).await;
                     break;
                 }
                 Err(e) => {
-                    warn!("HTTP Request to {} failed, retry {}, error: {}",url, c+1, e);
+                    warn!(
+                        "HTTP Request to {} failed, retry {}, error: {}",
+                        url,
+                        c + 1,
+                        e
+                    );
                 }
             };
         }
@@ -115,11 +127,21 @@ pub async fn saver(
 ) {
     let output = &args.output;
     let mut output_file_handler = File::create(output).await.unwrap();
+    let black_re = args.black_words.as_ref().map(|bw| Regex::new(bw).unwrap());
+
     loop {
         let result = result_channel.try_recv();
         if let Ok(result) = result {
             if result.status_code == 404 {
                 continue;
+            }
+
+            // 如果有设置 black_words 并且有 content，就在这里过滤
+            if let (Some(black_re), Some(content)) = (&black_re, &result.content) {
+                // 如果 match 了黑名单，就跳过这条结果
+                if black_re.is_match(content.as_str()) {
+                    continue;
+                }
             }
 
             info!("Found {} {}", result.status_code, result.url);

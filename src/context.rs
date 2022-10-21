@@ -26,4 +26,5 @@ pub enum WorkerStatus {
 pub struct EnumResult {
     pub status_code: u16,
     pub url: String,
+    pub content: Option<String>,
 }

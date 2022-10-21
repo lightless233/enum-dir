@@ -19,6 +19,7 @@ pub struct AppArgs {
     pub http_retries: usize,
     pub proxy: Option<String>,
     pub dict_path: Option<String>,
+    pub black_words: Option<String>,
 
     // not in cli args.
     #[derivative(Debug = "ignore")]
@@ -140,6 +141,12 @@ fn get_arg_matches() -> ArgMatches {
                 .takes_value(true)
                 .help("socks5 代理或 http 代理，例如 socks5://127.0.0.1:1080")
         )
+        .arg(
+            Arg::new("black-words")
+                .long("black-words")
+                .takes_value(true)
+                .help("黑名单关键字，默认为空，设置后当页面内容出现指定的关键字时，认为页面不存在，不记录到结果中。开启该功能后，自动切换为 GET 方法。")
+        )
         .get_matches()
 }
 
@@ -193,6 +200,13 @@ pub fn parse() -> Result<AppArgs, &'static str> {
         app_args.request_method = method;
     } else {
         return Err("method 错误！");
+    }
+
+    // 设置 black words
+    let black_words = options.get_one::<String>("black-words");
+    if black_words.is_some() {
+        app_args.black_words = black_words.cloned();
+        app_args.request_method = "GET".to_owned();
     }
 
     // 获取 UA
