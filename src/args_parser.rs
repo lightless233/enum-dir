@@ -20,6 +20,7 @@ pub struct AppArgs {
     pub proxy: Option<String>,
     pub dict_path: Option<String>,
     pub black_words: Option<String>,
+    pub fixed_length: bool,
 
     // not in cli args.
     #[derivative(Debug = "ignore")]
@@ -56,6 +57,12 @@ fn get_arg_matches() -> ArgMatches {
                 .default_value("3")
                 .takes_value(true)
                 .value_parser(value_parser!(usize)),
+        )
+        .arg(
+            Arg::new("fixed-length")
+                .long("fixed-length")
+                .help("固定枚举长度，而非枚举 1..=length ")
+                .takes_value(false)
         )
         .arg(
             Arg::new("method")
@@ -182,6 +189,7 @@ pub fn parse() -> Result<AppArgs, &'static str> {
     }
 
     app_args.length = options.get_one::<usize>("length").unwrap().to_owned();
+    app_args.fixed_length = options.is_present("fixed-length");
     app_args.task_count = options.get_one::<usize>("task-count").unwrap().to_owned();
     app_args.suffix = options.get_one::<String>("suffix").unwrap().to_owned();
     app_args.empty_suffix = options.is_present("empty-suffix");

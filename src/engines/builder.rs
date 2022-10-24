@@ -64,13 +64,18 @@ async fn enum_builder(
         .chain('0'..='9')
         .collect::<Vec<_>>();
 
-    // 计算待生成的总任务数，放到 app_context.pb 中
-    // TODO 这里计算的时候，要考虑后续会增加的 --fixed-length 参数
     let max_length = args.length;
     let suffix_length = suffixes.len();
     let pool_length = pool.len();
+    let range = if args.fixed_length {
+        max_length..=max_length
+    } else {
+        1..=max_length
+    };
+
+    // 计算待生成的总任务数，放到 app_context.pb 中
     let mut total: u64 = 0;
-    for t in 1..=max_length {
+    for t in range.clone() {
         total += (pool_length.pow(t as u32) * suffix_length) as u64;
     }
     let enum_pb = EnumProgressBar::new(total);
@@ -80,7 +85,7 @@ async fn enum_builder(
 
     // 按照预定长度生成枚举字符串，并放到 channel 中
     let mut current_length = 1;
-    for idx in 1..=max_length {
+    for idx in range {
         let product = (1..=idx).map(|_| pool.iter()).multi_cartesian_product();
         for it in product {
             if idx != current_length {

@@ -18,33 +18,35 @@ cargo build --release
 ```
 
 ## 1.2 方法2：直接下载构建好的二进制文件
-```shell
-TODO
-```
+访问 [https://github.com/lightless233/enum-dir/tags](https://github.com/lightless233/enum-dir/tags) 页面，寻找最新的 Tag 并下载对应的文件。 
 
 # 2. 参数说明
 ```shell
 USAGE:
-    enum-dir.exe [OPTIONS] --target <target>
+    enum-dir [OPTIONS] --target <target>
 
 OPTIONS:
-    -t, --target <target>            待爆破文件的链接，例如 https://example.com/
-    -d, --dict <dict>                字典模式，指定此模式后，将禁用枚举模式，如果为空，则使用内置字典
-    -l, --length <length>            爆破文件名的最大长度，默认为3 [default: 3]
-    -m, --method <method>            枚举时使用的 HTTP 方法，默认为 HEAD [default: HEAD]
-    -n, --task-count <task-count>    最大并发数量，默认为25 [default: 25]
-    -s, --suffix <suffix>            待枚举的文件后缀，多个后缀使用英文逗号分割，默认为：html,htm,php,zip,tar.gz,tar.bz2
-                                     [default: html,htm,php,zip,tar.gz,tar.bz2]
-    -e, --empty-suffix               是否枚举空后缀，默认枚举
-    -o, --output <output>            输出文件路径 [default: ./enum-dir-result.txt]
-    -c, --cookie <cookie>            指定枚举时使用的cookie
-    -H, --header <header>            指定枚举时的 http header
-        --user-agent <user-agent>    指定扫描时候的UA，默认使用 enum-dir 内置的UA [default: EnumDir/0.0.1]
-        --random-user-agent          使用随机的 user-agent，来源于 sqlmap，thanks sqlmap
-        --http-retry <http-retry>    当某次请求失败是，重试次数，默认为2 [default: 2]
-    -p, --proxy <proxy>              socks5 代理或 http 代理，例如 socks5://127.0.0.1:1080
-    -h, --help                       Print help information
-    -V, --version                    Print version information
+    -t, --target <target>              待爆破文件的链接，例如 https://example.com/
+    -d, --dict <dict>                  字典模式，指定此模式后，将禁用枚举模式，如果为空，则使用内置字典
+    -l, --length <length>              爆破文件名的最大长度，默认为3 [default: 3]
+        --fixed-length                 固定枚举长度，而非枚举 1..=length
+    -m, --method <method>              枚举时使用的 HTTP 方法，默认为 HEAD [default: HEAD]
+    -n, --task-count <task-count>      最大并发数量，默认为25 [default: 25]
+    -s, --suffix <suffix>              待枚举的文件后缀，多个后缀使用英文逗号分割，默认为：html,htm,php,zip,tar.gz,tar.bz2
+                                       [default: html,htm,php,zip,tar.gz,tar.bz2]
+    -e, --empty-suffix                 是否枚举空后缀，默认枚举
+    -o, --output <output>              输出文件路径 [default: ./enum-dir-result.txt]
+    -c, --cookie <cookie>              指定枚举时使用的cookie
+    -H, --header <header>              指定枚举时的 http header
+        --user-agent <user-agent>      指定扫描时候的UA，默认使用 enum-dir 内置的UA [default:
+                                       EnumDir/0.0.1]
+        --random-user-agent            使用随机的 user-agent，来源于 sqlmap，thanks sqlmap
+        --http-retry <http-retry>      当某次请求失败是，重试次数，默认为2 [default: 2]
+    -p, --proxy <proxy>                socks5 代理或 http 代理，例如 socks5://127.0.0.1:1080
+        --black-words <black-words>    黑名单关键字，默认为空，设置后当页面内容出现指定的关键字时，认为页面不存在，不记录到结果中。开启该功能后，自动切换为
+                                       GET 方法。
+    -h, --help                         Print help information
+    -V, --version                      Print version information
 ```
 
 ## 2.1 字典模式说明
