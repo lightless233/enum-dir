@@ -115,6 +115,17 @@ pub async fn worker(
                 }
             };
         }
+        {
+            // 进度条加1
+            app_context
+                .lock()
+                .await
+                .pb
+                .as_ref()
+                .unwrap()
+                .instance
+                .inc(1);
+        }
     }
 
     app_context.lock().await.worker_status[idx] = WorkerStatus::Stop;
@@ -144,7 +155,17 @@ pub async fn saver(
                 }
             }
 
-            info!("Found {} {}", result.status_code, result.url);
+            // info!("Found {} {}", result.status_code, result.url);
+            {
+                app_context
+                    .lock()
+                    .await
+                    .pb
+                    .as_ref()
+                    .unwrap()
+                    .instance
+                    .println(format!("Found {} {}", result.status_code, result.url));
+            }
 
             let line = format!("{} {}\n", result.status_code, result.url);
             let _ = output_file_handler
@@ -163,6 +184,9 @@ pub async fn saver(
             continue;
         }
     }
-    app_context.lock().await.saver_status = WorkerStatus::Stop;
+    let mut guard = app_context.lock().await;
+    guard.saver_status = WorkerStatus::Stop;
+    guard.pb.as_ref().unwrap().instance.finish();
+    // app_context.lock().await.saver_status = WorkerStatus::Stop;
     info!("Save worker stop.");
 }

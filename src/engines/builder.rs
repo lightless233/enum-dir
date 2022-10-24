@@ -1,5 +1,5 @@
 use crate::args_parser::AppArgs;
-use crate::context::AppContext;
+use crate::context::{AppContext, EnumProgressBar};
 use crate::WorkerStatus;
 use async_channel::Sender;
 use itertools::Itertools;
@@ -13,11 +13,6 @@ use tokio::fs::read_to_string;
 use tokio::sync::Mutex;
 
 /**
- * 合法的 PAT 列表
- */
-// static PAT: [&str; 4] = ["%ALPHA%", "%NUMBER%", "%ALPHANUM%", "%EXT%"];
-
-/**
  * 通过迭代器生成待枚举的文件名，并放到 channel 中
  */
 pub async fn builder(
@@ -29,15 +24,10 @@ pub async fn builder(
     // 如果 dict_path 不为 None，则使用字典模式，否则使用枚举模式
     if args.dict_path.is_some() {
         // 字典模式
-        dict_builder(
-            task_channel,
-            &args,
-            args.dict_path.as_ref().unwrap().as_str(),
-        )
-        .await;
+        dict_builder(task_channel, &args, &app_context).await;
     } else {
         // 枚举模式
-        enum_builder(task_channel, &args).await;
+        enum_builder(task_channel, &args, &app_context).await;
     }
 
     app_context.lock().await.builder_status = WorkerStatus::Stop;
@@ -60,7 +50,11 @@ fn get_suffix_from_cli(args: &AppArgs) -> Vec<String> {
 /**
  * 枚举模式生产任务
  */
-async fn enum_builder(task_channel: Sender<String>, args: &AppArgs) {
+async fn enum_builder(
+    task_channel: Sender<String>,
+    args: &AppArgs,
+    app_context: &Arc<Mutex<AppContext>>,
+) {
     // 处理 suffix
     let suffixes = get_suffix_from_cli(args);
 
@@ -70,9 +64,23 @@ async fn enum_builder(task_channel: Sender<String>, args: &AppArgs) {
         .chain('0'..='9')
         .collect::<Vec<_>>();
 
+    // 计算待生成的总任务数，放到 app_context.pb 中
+    // TODO 这里计算的时候，要考虑后续会增加的 --fixed-length 参数
+    let max_length = args.length;
+    let suffix_length = suffixes.len();
+    let pool_length = pool.len();
+    let mut total: u64 = 0;
+    for t in 1..=max_length {
+        total += (pool_length.pow(t as u32) * suffix_length) as u64;
+    }
+    let enum_pb = EnumProgressBar::new(total);
+    {
+        app_context.lock().await.pb = Some(enum_pb);
+    }
+
     // 按照预定长度生成枚举字符串，并放到 channel 中
     let mut current_length = 1;
-    for idx in 1..=args.length {
+    for idx in 1..=max_length {
         let product = (1..=idx).map(|_| pool.iter()).multi_cartesian_product();
         for it in product {
             if idx != current_length {
@@ -101,9 +109,14 @@ async fn enum_builder(task_channel: Sender<String>, args: &AppArgs) {
 /**
  * 字典模式生产任务
  */
-async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &str) {
+async fn dict_builder(
+    task_channel: Sender<String>,
+    args: &AppArgs,
+    app_context: &Arc<Mutex<AppContext>>,
+) {
     // 如果这里不提前定义 dict_content 变量，后面的 else 分支会出现悬垂引用，暂时想不到更优雅的方案了
     let dict_content: String;
+    let dict_path = args.dict_path.as_ref().unwrap().as_str();
     let dict_lines = if dict_path.is_empty() || !Path::new(dict_path).exists() {
         info!("未指定字典文件或文件不存在，切换到内置字典...");
         include_str!("../../dicts/default.txt").lines()
@@ -120,6 +133,7 @@ async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &
 
     // 获取 suffixes
     let suffixes = get_suffix_from_cli(args);
+    let suffixes_count = suffixes.len();
 
     // 为 pattern 构建 pool
     let mut pools = HashMap::new();
@@ -145,6 +159,33 @@ async fn dict_builder(task_channel: Sender<String>, args: &AppArgs, dict_path: &
             .collect::<Vec<String>>(),
     );
     pools.insert("%EXT%", suffixes);
+
+    // 预先计算总任务数量
+    let mut total: u64 = 0;
+    for line in dict_lines.clone() {
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        // 简单的判断每种pattern分别出现了几次即可
+        let alpha_pattern_count = line.matches("%ALPHA%").count();
+        let number_pattern_count = line.matches("%NUMBER%").count();
+        let alpha_number_pattern_count = line.matches("%ALPHANUM%").count();
+        let ext_pattern_count = line.matches("%EXT%").count();
+        // 计算当前行展开后可以变成多少个任务
+        let mut buf: Vec<u64> = vec![1];
+        buf.resize(buf.len() + alpha_pattern_count, 52);
+        buf.resize(buf.len() + number_pattern_count, 10);
+        buf.resize(buf.len() + alpha_number_pattern_count, 62);
+        buf.resize(buf.len() + ext_pattern_count, suffixes_count as u64);
+        let line_total: u64 = buf.into_iter().filter(|&it| it != 0).product::<u64>();
+        total += line_total;
+    }
+
+    // 设置进度条
+    let enum_pb = EnumProgressBar::new(total);
+    {
+        app_context.lock().await.pb = Some(enum_pb);
+    }
 
     for line in dict_lines {
         // 跳过空行和注释行
