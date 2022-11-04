@@ -104,7 +104,6 @@ fn get_arg_matches() -> ArgMatches {
                 .long("output")
                 .help("输出文件路径")
                 .takes_value(true)
-                .default_value("./enum-dir-result.txt")
         )
         .arg(
             Arg::new("cookie")
@@ -223,7 +222,20 @@ pub async fn parse() -> Result<AppArgs, &'static str> {
     app_args.task_count = options.get_one::<usize>("task-count").unwrap().to_owned();
     app_args.suffix = options.get_one::<String>("suffix").unwrap().to_owned();
     app_args.empty_suffix = options.is_present("empty-suffix");
-    app_args.output = options.get_one::<String>("output").unwrap().to_owned();
+    app_args.output = if let Some(o) = options.get_one::<String>("output") {
+        o.to_owned()
+    } else {
+        // 用户没有指定，使用 target 自动生成
+        let filename = app_args
+            .target
+            .clone()
+            .replace("https://", "")
+            .replace("http://", "")
+            .replace('/', "_")
+            .trim_matches('_')
+            .to_owned();
+        format!("{}.txt", filename)
+    };
 
     // 检查 method 是否合法
     let method = options
