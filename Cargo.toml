@@ -15,7 +15,9 @@ log = "0.4.17"
 log4rs = "1.1.1"
 rand = "0.8.5"
 regex = "1"
+tldextract = "^0.6.0"
 tokio = {version = "1.19.2", features = ["rt", "macros", "rt-multi-thread", "fs"]}
+url = "2.3.1"
 
 [dependencies.reqwest]
 default-features = false

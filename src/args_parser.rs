@@ -1,6 +1,8 @@
 use clap::{crate_version, value_parser, App, AppSettings, Arg, ArgAction, ArgMatches};
 use derivative::Derivative;
 use log::debug;
+use tldextract::TldOption;
+use url::Host;
 
 #[derive(Derivative, Default)]
 #[derivative(Debug)]
@@ -157,7 +159,7 @@ fn get_arg_matches() -> ArgMatches {
         .get_matches()
 }
 
-pub fn parse() -> Result<AppArgs, &'static str> {
+pub async fn parse() -> Result<AppArgs, &'static str> {
     let options = get_arg_matches();
     let mut app_args = AppArgs::default();
 
@@ -167,13 +169,41 @@ pub fn parse() -> Result<AppArgs, &'static str> {
     if target.is_empty() {
         return Err("target 不能为空");
     }
-    target = if target.starts_with("http://") || target.starts_with("https://") {
-        target
+
+    // 填充协议，校验 URL 是否合法
+    let mut auto_detect = false;
+    let tmp_target = if target.starts_with("http://") || target.starts_with("https://") {
+        target.clone()
     } else {
-        // TODO 需要探测真正的协议，如果 http 没有跳转，就都使用 http 协议，如果 http 协议跳转到 https 了，就使用 https 协议
-        // 目前为了简单，先添加 http 协议
+        auto_detect = true;
         format!("http://{}", target)
     };
+    let uri = reqwest::Url::parse(&tmp_target).unwrap();
+    match uri.host().unwrap() {
+        Host::Ipv4(_) => {}
+        _ => {
+            let tld_extractor = TldOption::default().cache_path(".tld_cache").build();
+            let tld_result = tld_extractor.extract(&tmp_target).unwrap();
+            if tld_result.suffix.is_none() {
+                return Err("target有误!");
+            }
+        }
+    };
+
+    // 自动探测协议
+    target = if auto_detect {
+        // 需要探测真正的协议，如果 http 没有跳转，就都使用 http 协议，如果 http 协议跳转到 https 了，就使用 https 协议
+        debug!("目标中未提供协议，自动探测...");
+        let client = reqwest::Client::builder().build().unwrap();
+        let http_url = format!("http://{}", target);
+        let response = client.head(http_url).send().await.unwrap();
+        let schema = response.url().scheme();
+        debug!("使用 {} 协议", schema);
+        format!("{}://{}", schema, target)
+    } else {
+        target
+    };
+
     app_args.target = if target.ends_with('/') {
         target
     } else {

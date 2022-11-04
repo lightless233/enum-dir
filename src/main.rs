@@ -14,7 +14,7 @@ mod utils;
 #[tokio::main]
 async fn main() {
     utils::init_logger();
-    let args = match args_parser::parse() {
+    let args = match args_parser::parse().await {
         Ok(v) => Arc::new(v),
         Err(e) => {
             error!("{}", e);
