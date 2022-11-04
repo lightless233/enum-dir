@@ -23,6 +23,7 @@ pub struct AppArgs {
     pub dict_path: Option<String>,
     pub black_words: Option<String>,
     pub fixed_length: bool,
+    pub debug_mode: bool,
 
     // not in cli args.
     #[derivative(Debug = "ignore")]
@@ -155,27 +156,27 @@ fn get_arg_matches() -> ArgMatches {
                 .takes_value(true)
                 .help("黑名单关键字，默认为空，设置后当页面内容出现指定的关键字时，认为页面不存在，不记录到结果中。开启该功能后，自动切换为 GET 方法。")
         )
+        .arg(
+            Arg::new("debug")
+            .long("debug")
+            .takes_value(false)
+            .help("调试模式")
+        )
         .get_matches()
 }
 
-pub async fn parse() -> Result<AppArgs, &'static str> {
-    let options = get_arg_matches();
-    let mut app_args = AppArgs::default();
-
-    // 解析 target 参数
-    // TODO 后续需要更加详细的验证 target 参数，不过现在自己用就比较无所谓
-    let mut target = options.get_one::<String>("target").unwrap().to_owned();
-    if target.is_empty() {
+async fn extract_target(raw_target: &String) -> Result<String, &'static str> {
+    if raw_target.is_empty() {
         return Err("target 不能为空");
     }
 
     // 填充协议，校验 URL 是否合法
     let mut auto_detect = false;
-    let tmp_target = if target.starts_with("http://") || target.starts_with("https://") {
-        target.clone()
+    let tmp_target = if raw_target.starts_with("http://") || raw_target.starts_with("https://") {
+        raw_target.clone()
     } else {
         auto_detect = true;
-        format!("http://{}", target)
+        format!("http://{}", raw_target)
     };
     let uri = reqwest::Url::parse(&tmp_target).unwrap();
     match uri.host().unwrap() {
@@ -190,24 +191,33 @@ pub async fn parse() -> Result<AppArgs, &'static str> {
     };
 
     // 自动探测协议
-    target = if auto_detect {
+    let target = if auto_detect {
         // 需要探测真正的协议，如果 http 没有跳转，就都使用 http 协议，如果 http 协议跳转到 https 了，就使用 https 协议
         debug!("目标中未提供协议，自动探测...");
         let client = reqwest::Client::builder().build().unwrap();
-        let http_url = format!("http://{}", target);
+        let http_url = format!("http://{}", raw_target);
         let response = client.head(http_url).send().await.unwrap();
         let schema = response.url().scheme();
         debug!("使用 {} 协议", schema);
-        format!("{}://{}", schema, target)
+        format!("{}://{}", schema, raw_target)
     } else {
-        target
+        raw_target.clone()
     };
 
-    app_args.target = if target.ends_with('/') {
-        target
+    if target.ends_with('/') {
+        Ok(target)
     } else {
-        format!("{}/", target)
-    };
+        Ok(format!("{}/", target))
+    }
+}
+
+pub async fn parse() -> Result<AppArgs, &'static str> {
+    let options = get_arg_matches();
+    let mut app_args = AppArgs::default();
+
+    // 解析 target 参数
+    let target = options.get_one::<String>("target").unwrap().to_owned();
+    app_args.target = extract_target(&target).await?;
 
     // 解析是否使用了字典模式
     if options.is_present("dict") {
@@ -288,6 +298,8 @@ pub async fn parse() -> Result<AppArgs, &'static str> {
     // 代理设置
     let proxy = options.get_one::<String>("proxy");
     app_args.proxy = proxy.cloned();
+
+    app_args.debug_mode = options.is_present("debug");
 
     debug!("app_args: {:?}", app_args);
     Ok(app_args)

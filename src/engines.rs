@@ -88,6 +88,9 @@ pub async fn worker(
         }
 
         // 根据重试策略，进行重试
+        if args.debug_mode {
+            debug!("try url: {}", url);
+        }
         for c in 0..args.http_retries {
             match request.try_clone().unwrap().send().await {
                 Ok(r) => {
@@ -152,6 +155,10 @@ pub async fn saver(
                 // 如果 match 了黑名单，就跳过这条结果
                 if black_re.is_match(content.as_str()) {
                     continue;
+                }
+
+                if args.debug_mode {
+                    debug!("black_re: {}, content: {}", black_re, content);
                 }
             }
 
