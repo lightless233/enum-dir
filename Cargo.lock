@@ -219,7 +219,7 @@ dependencies = [
 
 [[package]]
 name = "enum-dir"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-channel",
  "clap",
