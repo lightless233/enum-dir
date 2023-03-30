@@ -27,7 +27,9 @@ pub async fn worker(
     let target = &args.target;
 
     // 如果没使用 random user agent，直接在这里把UA写进去
-    let mut builder = ClientBuilder::new().timeout(Duration::from_secs(12));
+    let mut builder = ClientBuilder::new()
+        .timeout(Duration::from_secs(12))
+        .danger_accept_invalid_certs(true);
     if !args.random_user_agent {
         builder = builder.user_agent(&args.user_agent);
     }
